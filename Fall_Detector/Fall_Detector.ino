@@ -150,6 +150,8 @@ void loop() {
           return;
         }
         String combined_str = String("{");
+        float maxValueGesture = 0
+        String 
         // Loop through the output tensor values from the model
         for (int i = 0; i < NUM_GESTURES; i++) {
           combined_str += String("\"") +GESTURES[i] + "\":\"" + String(tflOutputTensor->data.f[i],6) + String("\"");
