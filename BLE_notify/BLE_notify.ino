@@ -1,9 +1,9 @@
 #include <ArduinoBLE.h>
 #include <string.h>
 
-BLEService bleService("180A"); // BLE LED Service
+BLEService ledService("180B"); // BLE LED Service
 
-BLECharacteristic stringCharacteristic( "2A57", BLERead | BLENotify, "test1");
+BLECharacteristic stringCharacteristic( "2A58", BLERead | BLENotify, "test1");
 
 void setup() {
   Serial.begin(9600);
@@ -19,14 +19,14 @@ void setup() {
   }
 
   // set advertised local name and service UUID:
-  BLE.setLocalName("Nano 33 BLE Sense");
-  BLE.setAdvertisedService(bleService);
+  BLE.setLocalName("Darryl Nano 33 BLE Sense");
+  BLE.setAdvertisedService(ledService);
 
   // add the characteristic to the service
   ledService.addCharacteristic(stringCharacteristic);
 
   // add service
-  BLE.addService(bleService);
+  BLE.addService(ledService);
 
   // set the initial value for the characteristic:
   stringCharacteristic.writeValue("ok");
@@ -38,6 +38,10 @@ void setup() {
 }
 
 void loop() {
+
+  String data = "fall";
+  byte messageBytes[data.length()+1]; 
+  data.getBytes(messageBytes, data.length()+1);
   // listen for Bluetooth® Low Energy peripherals to connect:
   BLEDevice central = BLE.central();
 
@@ -50,7 +54,7 @@ void loop() {
 
     // while the central is still connected to peripheral:
     while (central.connected()) {
-      stringCharacteristic.writeValue("fall");
+      stringCharacteristic.writeValue(messageBytes, data.length()+1);
     }
 
     // when the central disconnects, print it out:
