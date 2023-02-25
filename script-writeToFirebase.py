@@ -1,4 +1,4 @@
-import firebase_admin, os, time, random
+import firebase_admin, os, time, random, json, serial
 from firebase_admin import credentials
 from firebase_admin import db
 from dotenv import load_dotenv
@@ -39,4 +39,24 @@ class DB_connection:
 # for debugging purposes
 if __name__ == "__main__":
     test = DB_connection()
-    test.write_to_realtime_db(True, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+    ser = serial.Serial('/dev/ttyACM0', 9600) # replace 'COM3' with the name of your serial port
+
+    counter = 0
+    while True:
+        if ser.in_waiting > 0:
+            print("--------------------")
+            gesture_data = ser.readline().decode('utf-8').strip()
+            gesture_data_json_object = json.loads(gesture_data)
+            max_gesture_key = max(gesture_data_json_object, key=gesture_data_json_object.get)
+            # Find maximum value
+            max_gesture_value = gesture_data_json_object[max_gesture_key]
+            
+            print(gesture_data_json_object)
+            print("Identified Gesture: " + max_gesture_key + " with value: " + max_gesture_value)
+            print("--------------------")
+        
+            test.write_to_realtime_db(max_gesture_key, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+            counter += 1
+        
+        if counter > 10:
+            break
