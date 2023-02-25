@@ -12,7 +12,6 @@
   Modified by Dominic Pajak, Sandeep Mistry
   This example code is in the public domain.
 */
-
 #include <Arduino_LSM9DS1.h>
 
 #include <TensorFlowLite.h>
@@ -26,7 +25,13 @@
 //#include "DebugLog.h"
 
 //#include "model.h"
-#include "GestureCapture_model.h"
+#include "GestureCapture_model_quantized.h"
+#include <ArduinoBLE.h>
+
+
+BLEService ledService("180A"); // BLE LED Service
+
+BLECharacteristic stringCharacteristic( "2A57", BLERead | BLENotify, "test1");
 
 const float accelerationThreshold = 2.5; // threshold of significant in G's
 const int numSamples = 119;
@@ -58,20 +63,22 @@ const char* GESTURES[] = {
 };
 
 #define NUM_GESTURES (sizeof(GESTURES) / sizeof(GESTURES[0]))
-#define BUZZER_PIN 4
-#define BUZZER_FREQ 2000
 
 String GestureFlag = "punch";
 
 void setup() {
   Serial.begin(9600);
+  delay(5000);
   while (!Serial);
+
 
   // initialize the IMU
   if (!IMU.begin()) {
     Serial.println("Failed to initialize IMU!");
     while (1);
   }
+
+
 
   // print out the samples rates of the IMUs
   Serial.print("Accelerometer sample rate = ");
@@ -85,7 +92,7 @@ void setup() {
 
   // get the TFL representation of the model byte array
   //tflModel = tflite::GetModel(model);
-  tflModel = tflite::GetModel(GestureCapture_model);
+  tflModel = tflite::GetModel(GestureCapture_model_quantized);
   if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
     Serial.println("Model schema mismatch!");
     while (1);
@@ -103,12 +110,60 @@ void setup() {
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
 
-  pinMode(BUZZER_PIN, OUTPUT);
+  // begin initialization
+  if (!BLE.begin()) {
+    Serial.println("starting Bluetooth® Low Energy failed!");
+
+    while (1);
+  }
+
+    // set advertised local name and service UUID:
+  BLE.setLocalName("Chocka123 Nano 33 BLE Sense");
+  BLE.setAdvertisedService(ledService);
+
+  // add the characteristic to the service
+  ledService.addCharacteristic(stringCharacteristic);
+
+  // add service
+  BLE.addService(ledService);
+
+  // set the initial value for the characteristic:
+  stringCharacteristic.writeValue("ok");
+
+  // start advertising
+  BLE.advertise();
+
+  Serial.println("BLE Sending Data");
+
+
 }
 
 void loop() {
   float aX, aY, aZ, gX, gY, gZ;
 
+  BLEDevice central = BLE.central();
+
+    if (central) {
+    Serial.print("Connected to central: ");
+    // print the central's MAC address:
+    Serial.println(central.address());
+    digitalWrite(LED_BUILTIN, HIGH);
+
+    // while the central is still connected to peripheral:
+    while (central.connected()) {
+      stringCharacteristic.writeValue("fall");
+    }
+
+    // when the central disconnects, print it out:
+    Serial.print(F("Disconnected from central: "));
+    Serial.println(central.address());
+    digitalWrite(LED_BUILTIN, LOW);
+  }
+
+  Serial.print("Connected to central: ");
+  // print the central's MAC address:
+  Serial.println(central.address());
+  digitalWrite(LED_BUILTIN, HIGH);
   // wait for significant motion
   while (samplesRead == numSamples) {
     if (IMU.accelerationAvailable()) {
@@ -176,28 +231,9 @@ void loop() {
         }
         combined_str += String("}");
         Serial.println(combined_str);
-        // int buzz = 0;
-        // bool switchVal = False;
-        // if (maxGestureKey == GestureFlag) {
-        //   //Serial.println("True");
-        //   buzz= 1;
-        //   for (int i = 0; i < 200; i++) {
-        //     tone(BUZZER_PIN, BUZZER_FREQ);
-        //     delay(100);
-        //     if(switchVal){
-        //         noTone(BUZZER_PIN);
-        //         buzz=0
-        //         serial.println("SwitchOFF")
-        //     }
-        //   }
-          
-        //   if(buzz==1){
-        //     noTone(BUZZER_PIN);
-        //     serial.println("FallConfirmed")
-        //     buzz =0;
-        //   }
-        // }
       }
     }
   }
+
+
 }
