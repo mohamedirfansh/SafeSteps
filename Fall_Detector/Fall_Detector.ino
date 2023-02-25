@@ -58,6 +58,10 @@ const char* GESTURES[] = {
 };
 
 #define NUM_GESTURES (sizeof(GESTURES) / sizeof(GESTURES[0]))
+#define BUZZER_PIN 4
+#define BUZZER_FREQ 2000
+
+String GestureFlag = "punch";
 
 void setup() {
   Serial.begin(9600);
@@ -98,6 +102,8 @@ void setup() {
   // Get pointers for the model's input and output tensors
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
+
+  pinMode(BUZZER_PIN, OUTPUT);
 }
 
 void loop() {
@@ -150,6 +156,8 @@ void loop() {
           return;
         }
         String combined_str = String("{");
+        String maxGestureKey;
+        float maxValueKeyThreshold =0 ;
         // Loop through the output tensor values from the model
         for (int i = 0; i < NUM_GESTURES; i++) {
           combined_str += String("\"") +GESTURES[i] + "\":\"" + String(tflOutputTensor->data.f[i],6) + String("\"");
@@ -159,10 +167,36 @@ void loop() {
           if(i<NUM_GESTURES-1){
             combined_str+=String(",");
           }
+
+          if(tflOutputTensor->data.f[i]>maxValueKeyThreshold){
+            maxValueKeyThreshold = tflOutputTensor->data.f[i];
+            maxGestureKey = GESTURES[i];
+          }
           
         }
         combined_str += String("}");
         Serial.println(combined_str);
+        // int buzz = 0;
+        // bool switchVal = False;
+        // if (maxGestureKey == GestureFlag) {
+        //   //Serial.println("True");
+        //   buzz= 1;
+        //   for (int i = 0; i < 200; i++) {
+        //     tone(BUZZER_PIN, BUZZER_FREQ);
+        //     delay(100);
+        //     if(switchVal){
+        //         noTone(BUZZER_PIN);
+        //         buzz=0
+        //         serial.println("SwitchOFF")
+        //     }
+        //   }
+          
+        //   if(buzz==1){
+        //     noTone(BUZZER_PIN);
+        //     serial.println("FallConfirmed")
+        //     buzz =0;
+        //   }
+        // }
       }
     }
   }
