@@ -149,14 +149,20 @@ void loop() {
           while (1);
           return;
         }
-
+        String combined_str = String("{");
         // Loop through the output tensor values from the model
         for (int i = 0; i < NUM_GESTURES; i++) {
-          Serial.print(GESTURES[i]);
-          Serial.print(": ");
-          Serial.println(tflOutputTensor->data.f[i], 6);
+          combined_str += String("\"") +GESTURES[i] + "\":\"" + String(tflOutputTensor->data.f[i],6) + String("\"");
+          //Serial.print(GESTURES[i]);
+          //Serial.print(":");
+          //Serial.println(tflOutputTensor->data.f[i], 6);
+          if(i<NUM_GESTURES-1){
+            combined_str+=String(",");
+          }
+          
         }
-        Serial.println();
+        combined_str += String("}");
+        Serial.println(combined_str);
       }
     }
   }

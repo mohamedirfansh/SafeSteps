@@ -1,7 +1,7 @@
 import serial
 
 ser = serial.Serial('COM4', 9600) # replace 'COM3' with the name of your serial port
-dataFile = open('flex.csv', 'w')
+dataFile = open('punch.csv', 'w')
 
 dataFile.write('aX,aY,aZ,gX,gY,gZ\n')
 
