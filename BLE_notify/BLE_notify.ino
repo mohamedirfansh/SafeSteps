@@ -1,7 +1,7 @@
 #include <ArduinoBLE.h>
 #include <string.h>
 
-BLEService ledService("180A"); // BLE LED Service
+BLEService bleService("180A"); // BLE LED Service
 
 BLECharacteristic stringCharacteristic( "2A57", BLERead | BLENotify, "test1");
 
@@ -20,13 +20,13 @@ void setup() {
 
   // set advertised local name and service UUID:
   BLE.setLocalName("Nano 33 BLE Sense");
-  BLE.setAdvertisedService(ledService);
+  BLE.setAdvertisedService(bleService);
 
   // add the characteristic to the service
   ledService.addCharacteristic(stringCharacteristic);
 
   // add service
-  BLE.addService(ledService);
+  BLE.addService(bleService);
 
   // set the initial value for the characteristic:
   stringCharacteristic.writeValue("ok");
