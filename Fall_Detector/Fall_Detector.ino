@@ -31,7 +31,7 @@
 
 BLEService ledService("180A"); // BLE LED Service
 
-BLECharacteristic stringCharacteristic( "2A57", BLERead | BLENotify, "test1");
+BLEByteCharacteristic switchCharacteristic( "2A57", BLERead | BLENotify);
 
 const float accelerationThreshold = 2.5; // threshold of significant in G's
 const int numSamples = 119;
@@ -53,7 +53,7 @@ TfLiteTensor* tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 // be adjusted based on the model you are using
-constexpr int tensorArenaSize = 8 * 1024;
+constexpr int tensorArenaSize = 6 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
 // array to map gesture index to a name
@@ -68,7 +68,6 @@ String GestureFlag = "punch";
 
 void setup() {
   Serial.begin(9600);
-  delay(5000);
   while (!Serial);
 
 
@@ -122,13 +121,13 @@ void setup() {
   BLE.setAdvertisedService(ledService);
 
   // add the characteristic to the service
-  ledService.addCharacteristic(stringCharacteristic);
+  ledService.addCharacteristic(switchCharacteristic);
 
   // add service
   BLE.addService(ledService);
 
   // set the initial value for the characteristic:
-  stringCharacteristic.writeValue("ok");
+  switchCharacteristic.writeValue(0);
 
   // start advertising
   BLE.advertise();
@@ -141,30 +140,14 @@ void setup() {
 void loop() {
   float aX, aY, aZ, gX, gY, gZ;
 
+  String data = "fall";
+  byte messageBytes[data.length()+1]; 
+  data.getBytes(messageBytes, data.length()+1);
+  // listen for Bluetooth® Low Energy peripherals to connect:
   BLEDevice central = BLE.central();
 
-    if (central) {
-    Serial.print("Connected to central: ");
-    // print the central's MAC address:
-    Serial.println(central.address());
-    digitalWrite(LED_BUILTIN, HIGH);
 
-    // while the central is still connected to peripheral:
-    while (central.connected()) {
-      stringCharacteristic.writeValue("fall");
-    }
 
-    // when the central disconnects, print it out:
-    Serial.print(F("Disconnected from central: "));
-    Serial.println(central.address());
-    digitalWrite(LED_BUILTIN, LOW);
-  }
-
-  Serial.print("Connected to central: ");
-  // print the central's MAC address:
-  Serial.println(central.address());
-  digitalWrite(LED_BUILTIN, HIGH);
-  // wait for significant motion
   while (samplesRead == numSamples) {
     if (IMU.accelerationAvailable()) {
       // read the acceleration data
@@ -231,6 +214,24 @@ void loop() {
         }
         combined_str += String("}");
         Serial.println(combined_str);
+
+        if (central) {
+          Serial.print("Connected to central: ");
+          // print the central's MAC address:
+          Serial.println(central.address());
+          digitalWrite(LED_BUILTIN, HIGH);
+
+          // while the central is still connected to peripheral:
+          while (central.connected()) {
+            switchCharacteristic.writeValue(3);
+          }
+
+          // when the central disconnects, print it out:
+          Serial.print(F("Disconnected from central: "));
+          Serial.println(central.address());
+          digitalWrite(LED_BUILTIN, LOW);
+        }
+        
       }
     }
   }
