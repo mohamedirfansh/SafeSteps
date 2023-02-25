@@ -176,18 +176,27 @@ void loop() {
         }
         combined_str += String("}");
         Serial.println(combined_str);
-
-        if (maxGestureKey == GestureFlag) {
-          Serial.println("True");
-          for (int i = 0; i < 200; i++) {
-            tone(BUZZER_PIN, BUZZER_FREQ);
-            delay(100);
-          }
-          noTone(BUZZER_PIN);
-
-        }
-
-
+        // int buzz = 0;
+        // bool switchVal = False;
+        // if (maxGestureKey == GestureFlag) {
+        //   //Serial.println("True");
+        //   buzz= 1;
+        //   for (int i = 0; i < 200; i++) {
+        //     tone(BUZZER_PIN, BUZZER_FREQ);
+        //     delay(100);
+        //     if(switchVal){
+        //         noTone(BUZZER_PIN);
+        //         buzz=0
+        //         serial.println("SwitchOFF")
+        //     }
+        //   }
+          
+        //   if(buzz==1){
+        //     noTone(BUZZER_PIN);
+        //     serial.println("FallConfirmed")
+        //     buzz =0;
+        //   }
+        // }
       }
     }
   }
