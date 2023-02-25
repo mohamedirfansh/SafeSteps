@@ -1,12 +1,12 @@
 import firebase_admin, os, time, random, json, serial
 from firebase_admin import credentials
 from firebase_admin import db
+from firebase_admin import firestore 
 from dotenv import load_dotenv
 
 load_dotenv()           # load environment variables
 
 certificate_path = os.getenv('CERT_PATH')
-user_id = os.getenv('USER_ID')
 database_url = os.getenv('DATABASE_PATH')
 
 numbers = [str(i) for i in range(10)]
@@ -24,11 +24,18 @@ class DB_connection:
             }
         )
         self.ref = db.reference('/')
+        firestoreDB = firestore.client()
+        self.db_ref = firestoreDB.collection('Users')
 
     # fall_detected: boolean; to differentiate true positive and false positive
     # time which fall is detected: string value
     def write_to_realtime_db(self, fall_detected, time):
         device_id = "yyy"
+        
+        data = self.db_ref.where('DeviceID', '==', device_id).stream()
+        for tmp in data:
+            user_id = tmp.get('UserID')
+
         entry_ref = self.ref.child(user_id)
         device_ref = entry_ref.child(device_id)
         fall_id = ''.join([random.choice(allCharacters) for i in range(20)])
@@ -55,7 +62,7 @@ if __name__ == "__main__":
             print("Identified Gesture: " + max_gesture_key + " with value: " + max_gesture_value)
             print("--------------------")
         
-            test.write_to_realtime_db(max_gesture_key, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
+            test.write_to_realtime_db(True, time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()))
             counter += 1
         
         if counter > 10:
