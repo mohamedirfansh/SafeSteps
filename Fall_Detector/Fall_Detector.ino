@@ -29,11 +29,11 @@
 #include <ArduinoBLE.h>
 
 
-BLEService ledService("180A"); // BLE LED Service
+BLEService ledService("180A");  // BLE LED Service
 
-BLEByteCharacteristic switchCharacteristic( "2A57", BLERead | BLENotify);
+BLEByteCharacteristic switchCharacteristic("2A57", BLERead);
 
-const float accelerationThreshold = 2.5; // threshold of significant in G's
+const float accelerationThreshold = 2;  // threshold of significant in G's
 const int numSamples = 119;
 
 int samplesRead = numSamples;
@@ -53,7 +53,7 @@ TfLiteTensor* tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 // be adjusted based on the model you are using
-constexpr int tensorArenaSize = 6 * 1024;
+constexpr int tensorArenaSize = 4.4 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
 // array to map gesture index to a name
@@ -74,33 +74,35 @@ void setup() {
   // initialize the IMU
   if (!IMU.begin()) {
     Serial.println("Failed to initialize IMU!");
-    while (1);
+    while (1)
+      ;
   }
 
 
 
-  // print out the samples rates of the IMUs
-  Serial.print("Accelerometer sample rate = ");
-  Serial.print(IMU.accelerationSampleRate());
-  Serial.println(" Hz");
-  Serial.print("Gyroscope sample rate = ");
-  Serial.print(IMU.gyroscopeSampleRate());
-  Serial.println(" Hz");
+  // // print out the samples rates of the IMUs
+  // Serial.print("Accelerometer sample rate = ");
+  // Serial.print(IMU.accelerationSampleRate());
+  // Serial.println(" Hz");
+  // Serial.print("Gyroscope sample rate = ");
+  // Serial.print(IMU.gyroscopeSampleRate());
+  // Serial.println(" Hz");
 
-  Serial.println();
+  // Serial.println();
 
   // get the TFL representation of the model byte array
   //tflModel = tflite::GetModel(model);
   tflModel = tflite::GetModel(GestureCapture_model_quantized);
   if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
     Serial.println("Model schema mismatch!");
-    while (1);
+    while (1)
+      ;
   }
 
   // Create an interpreter to run the model
   //tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize, &tflErrorReporter);
-   static tflite::MicroInterpreter static_interpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize);
-   tflInterpreter = &static_interpreter;
+  static tflite::MicroInterpreter static_interpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize);
+  tflInterpreter = &static_interpreter;
 
   // Allocate memory for the model's input and output tensors
   tflInterpreter->AllocateTensors();
@@ -113,10 +115,11 @@ void setup() {
   if (!BLE.begin()) {
     Serial.println("starting Bluetooth® Low Energy failed!");
 
-    while (1);
+    while (1)
+      ;
   }
 
-    // set advertised local name and service UUID:
+  // set advertised local name and service UUID:
   BLE.setLocalName("Chocka123 Nano 33 BLE Sense");
   BLE.setAdvertisedService(ledService);
 
@@ -127,114 +130,105 @@ void setup() {
   BLE.addService(ledService);
 
   // set the initial value for the characteristic:
-  switchCharacteristic.writeValue(0);
+  //switchCharacteristic.writeValue(0);
 
   // start advertising
   BLE.advertise();
 
   Serial.println("BLE Sending Data");
-
-
 }
 
 void loop() {
   float aX, aY, aZ, gX, gY, gZ;
-
-  String data = "fall";
-  byte messageBytes[data.length()+1]; 
-  data.getBytes(messageBytes, data.length()+1);
   // listen for Bluetooth® Low Energy peripherals to connect:
   BLEDevice central = BLE.central();
 
+  if (central) {
+    Serial.print("Connected to central: ");
+    // print the central's MAC address:
+    Serial.println(central.address());
+    digitalWrite(LED_BUILTIN, HIGH);
 
 
-  while (samplesRead == numSamples) {
-    if (IMU.accelerationAvailable()) {
-      // read the acceleration data
-      IMU.readAcceleration(aX, aY, aZ);
 
-      // sum up the absolutes
-      float aSum = fabs(aX) + fabs(aY) + fabs(aZ);
+    // while the central is still connected to peripheral:
+    while (central.connected()) {
+      
 
-      // check if it's above the threshold
-      if (aSum >= accelerationThreshold) {
-        // reset the sample read count
-        samplesRead = 0;
-        break;
+      while (samplesRead == numSamples) {
+        if (IMU.accelerationAvailable()) {
+          // read the acceleration data
+          IMU.readAcceleration(aX, aY, aZ);
+
+          // sum up the absolutes
+          float aSum = fabs(aX) + fabs(aY) + fabs(aZ);
+
+          // check if it's above the threshold
+          if (aSum >= accelerationThreshold) {
+            // reset the sample read count
+            samplesRead = 0;
+            break;
+          }
+        }
+      }
+
+      // check if the all the required samples have been read since
+      // the last time the significant motion was detected
+      while (samplesRead < numSamples) {
+        // check if new acceleration AND gyroscope data is available
+        if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
+          // read the acceleration and gyroscope data
+          IMU.readAcceleration(aX, aY, aZ);
+          IMU.readGyroscope(gX, gY, gZ);
+
+          // normalize the IMU data between 0 to 1 and store in the model's
+          // input tensor
+          tflInputTensor->data.f[samplesRead * 6 + 0] = (aX + 4.0) / 8.0;
+          tflInputTensor->data.f[samplesRead * 6 + 1] = (aY + 4.0) / 8.0;
+          tflInputTensor->data.f[samplesRead * 6 + 2] = (aZ + 4.0) / 8.0;
+          tflInputTensor->data.f[samplesRead * 6 + 3] = (gX + 2000.0) / 4000.0;
+          tflInputTensor->data.f[samplesRead * 6 + 4] = (gY + 2000.0) / 4000.0;
+          tflInputTensor->data.f[samplesRead * 6 + 5] = (gZ + 2000.0) / 4000.0;
+
+          samplesRead++;
+
+          if (samplesRead == numSamples) {
+            // Run inferencing
+            TfLiteStatus invokeStatus = tflInterpreter->Invoke();
+            if (invokeStatus != kTfLiteOk) {
+              Serial.println("Invoke failed!");
+              while (1)
+                ;
+              return;
+            }
+            String combined_str = String("{");
+            String maxGestureKey;
+            int maxGestureIndex;
+            float maxValueKeyThreshold = 0;
+            // Loop through the output tensor values from the model
+            for (int i = 0; i < NUM_GESTURES; i++) {
+              combined_str += String("\"") + GESTURES[i] + "\":\"" + String(tflOutputTensor->data.f[i], 6) + String("\"");
+              if (i < NUM_GESTURES - 1) {
+                combined_str += String(",");
+              }
+
+              if (tflOutputTensor->data.f[i] > maxValueKeyThreshold) {
+                maxValueKeyThreshold = tflOutputTensor->data.f[i];
+                maxGestureKey = GESTURES[i];
+                maxGestureIndex = i;
+              }
+            }
+            combined_str += String("}");
+            Serial.println(combined_str+maxGestureIndex);
+            switchCharacteristic.writeValue(maxGestureIndex);
+          }
+        }
       }
     }
+
+    // when the central disconnects, print it out:
+    Serial.print(F("Disconnected from central: "));
+    Serial.println(central.address());
+    digitalWrite(LED_BUILTIN, LOW);
   }
-
-  // check if the all the required samples have been read since
-  // the last time the significant motion was detected
-  while (samplesRead < numSamples) {
-    // check if new acceleration AND gyroscope data is available
-    if (IMU.accelerationAvailable() && IMU.gyroscopeAvailable()) {
-      // read the acceleration and gyroscope data
-      IMU.readAcceleration(aX, aY, aZ);
-      IMU.readGyroscope(gX, gY, gZ);
-
-      // normalize the IMU data between 0 to 1 and store in the model's
-      // input tensor
-      tflInputTensor->data.f[samplesRead * 6 + 0] = (aX + 4.0) / 8.0;
-      tflInputTensor->data.f[samplesRead * 6 + 1] = (aY + 4.0) / 8.0;
-      tflInputTensor->data.f[samplesRead * 6 + 2] = (aZ + 4.0) / 8.0;
-      tflInputTensor->data.f[samplesRead * 6 + 3] = (gX + 2000.0) / 4000.0;
-      tflInputTensor->data.f[samplesRead * 6 + 4] = (gY + 2000.0) / 4000.0;
-      tflInputTensor->data.f[samplesRead * 6 + 5] = (gZ + 2000.0) / 4000.0;
-
-      samplesRead++;
-
-      if (samplesRead == numSamples) {
-        // Run inferencing
-        TfLiteStatus invokeStatus = tflInterpreter->Invoke();
-        if (invokeStatus != kTfLiteOk) {
-          Serial.println("Invoke failed!");
-          while (1);
-          return;
-        }
-        String combined_str = String("{");
-        String maxGestureKey;
-        float maxValueKeyThreshold =0 ;
-        // Loop through the output tensor values from the model
-        for (int i = 0; i < NUM_GESTURES; i++) {
-          combined_str += String("\"") +GESTURES[i] + "\":\"" + String(tflOutputTensor->data.f[i],6) + String("\"");
-          //Serial.print(GESTURES[i]);
-          //Serial.print(":");
-          //Serial.println(tflOutputTensor->data.f[i], 6);
-          if(i<NUM_GESTURES-1){
-            combined_str+=String(",");
-          }
-
-          if(tflOutputTensor->data.f[i]>maxValueKeyThreshold){
-            maxValueKeyThreshold = tflOutputTensor->data.f[i];
-            maxGestureKey = GESTURES[i];
-          }
-          
-        }
-        combined_str += String("}");
-        Serial.println(combined_str);
-
-        if (central) {
-          Serial.print("Connected to central: ");
-          // print the central's MAC address:
-          Serial.println(central.address());
-          digitalWrite(LED_BUILTIN, HIGH);
-
-          // while the central is still connected to peripheral:
-          while (central.connected()) {
-            switchCharacteristic.writeValue(3);
-          }
-
-          // when the central disconnects, print it out:
-          Serial.print(F("Disconnected from central: "));
-          Serial.println(central.address());
-          digitalWrite(LED_BUILTIN, LOW);
-        }
-        
-      }
-    }
-  }
-
-
 }
