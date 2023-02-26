@@ -1,4 +1,5 @@
 import script_writeToFirebase, serial, json, time
+from sendToTelegram import sendMsg
 
 first = True
 dbConnection = script_writeToFirebase.DB_connection()
@@ -21,6 +22,7 @@ while True:
 
         if max_gesture_key == "FallDetected":
             dbConnection.write_to_realtime_db("Fall Detected", time_fallen)
+            sendMsg()
         else:
             dbConnection.write_to_realtime_db("Stumble", time_fallen)
         first = True
