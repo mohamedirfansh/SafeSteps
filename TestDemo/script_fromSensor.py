@@ -11,7 +11,7 @@ while True:
         max_gesture_key = max(gesture_data_json_object, key=gesture_data_json_object.get)
         print(gesture_data_json_object)
         print(max_gesture_key)
-        if max_gesture_key == "Fall":
+        if max_gesture_key == "fall":
             time_fallen = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
             dbConnection.write_to_realtime_db("Fall", time_fallen)
             sendMsg()
