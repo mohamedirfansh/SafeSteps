@@ -14,17 +14,22 @@ const FallModal = function () {
   const openModal = () => {
     setShowModal(true);
   };
+  let initialRender = true;
   useEffect(() => {
-    const newFall = ref(db, 'QtC8bjpq2EUreDk27XNnBTTdUvg1' + '/yyy');
-    onValue(newFall, (snapshot) => {
-      const data = snapshot.val();
-      console.log(data);
-      console.log(oldFalls);
-      if (data !== oldFalls) {
-        openModal();
-      }
-      setOldFalls(data);
-    });
+    if (initialRender) {
+      initialRender = false;
+    } else {
+      const newFall = ref(db, 'QtC8bjpq2EUreDk27XNnBTTdUvg1' + '/yyy');
+      onValue(newFall, (snapshot) => {
+        const data = snapshot.val();
+        console.log(data);
+        console.log(oldFalls);
+        if (data !== oldFalls) {
+          openModal();
+        }
+        setOldFalls(data);
+      });
+    }
   }, []);
 
   return (
