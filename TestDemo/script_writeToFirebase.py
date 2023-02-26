@@ -31,7 +31,6 @@ class DB_connection:
     # time which fall is detected: string value
     def write_to_realtime_db(self, fall_detected, time):
         device_id = "yyy"
-        print("Debug")
         data = self.db_ref.where('DeviceID', '==', device_id).stream()
         # for tmp in data:
         #     print(tmp)
@@ -43,7 +42,6 @@ class DB_connection:
         fall_ref = device_ref.child(fall_id)
         fall_ref.child("Time").set(time)
         fall_ref.child("isFall").set(fall_detected)
-        print('here!')
         
 # for debugging purposes
 if __name__ == "__main__":
