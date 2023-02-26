@@ -12,7 +12,6 @@
   Modified by Dominic Pajak, Sandeep Mistry
   This example code is in the public domain.
 */
-
 #include <Arduino_LSM9DS1.h>
 
 #include <TensorFlowLite.h>
@@ -26,9 +25,15 @@
 //#include "DebugLog.h"
 
 //#include "model.h"
-#include "GestureCapture_model.h"
+#include "GestureCapture_model_quantized.h"
+#include <ArduinoBLE.h>
 
-const float accelerationThreshold = 2.5; // threshold of significant in G's
+
+// BLEService ledService("180A");  // BLE LED Service
+
+// BLEByteCharacteristic switchCharacteristic("2A57", BLERead);
+
+const float accelerationThreshold = 2;  // threshold of significant in G's
 const int numSamples = 119;
 
 int samplesRead = numSamples;
@@ -48,30 +53,33 @@ TfLiteTensor* tflOutputTensor = nullptr;
 
 // Create a static memory buffer for TFLM, the size may need to
 // be adjusted based on the model you are using
-constexpr int tensorArenaSize = 8 * 1024;
+constexpr int tensorArenaSize = 6 * 1024;
 byte tensorArena[tensorArenaSize] __attribute__((aligned(16)));
 
 // array to map gesture index to a name
 const char* GESTURES[] = {
-  "punch",
-  "flex"
+  "fall",
+  "normal"
 };
 
 #define NUM_GESTURES (sizeof(GESTURES) / sizeof(GESTURES[0]))
-#define BUZZER_PIN 4
-#define BUZZER_FREQ 2000
 
 String GestureFlag = "punch";
 
 void setup() {
   Serial.begin(9600);
-  while (!Serial);
+  while (!Serial)
+    ;
+
 
   // initialize the IMU
   if (!IMU.begin()) {
     Serial.println("Failed to initialize IMU!");
-    while (1);
+    while (1)
+      ;
   }
+
+
 
   // print out the samples rates of the IMUs
   Serial.print("Accelerometer sample rate = ");
@@ -85,16 +93,17 @@ void setup() {
 
   // get the TFL representation of the model byte array
   //tflModel = tflite::GetModel(model);
-  tflModel = tflite::GetModel(GestureCapture_model);
+  tflModel = tflite::GetModel(GestureCapture_model_quantized);
   if (tflModel->version() != TFLITE_SCHEMA_VERSION) {
     Serial.println("Model schema mismatch!");
-    while (1);
+    while (1)
+      ;
   }
 
   // Create an interpreter to run the model
   //tflInterpreter = new tflite::MicroInterpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize, &tflErrorReporter);
-   static tflite::MicroInterpreter static_interpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize);
-   tflInterpreter = &static_interpreter;
+  static tflite::MicroInterpreter static_interpreter(tflModel, tflOpsResolver, tensorArena, tensorArenaSize);
+  tflInterpreter = &static_interpreter;
 
   // Allocate memory for the model's input and output tensors
   tflInterpreter->AllocateTensors();
@@ -103,13 +112,11 @@ void setup() {
   tflInputTensor = tflInterpreter->input(0);
   tflOutputTensor = tflInterpreter->output(0);
 
-  pinMode(BUZZER_PIN, OUTPUT);
 }
 
 void loop() {
   float aX, aY, aZ, gX, gY, gZ;
-
-  // wait for significant motion
+  // listen for Bluetooth® Low Energy peripherals to connect:
   while (samplesRead == numSamples) {
     if (IMU.accelerationAvailable()) {
       // read the acceleration data
@@ -152,51 +159,29 @@ void loop() {
         TfLiteStatus invokeStatus = tflInterpreter->Invoke();
         if (invokeStatus != kTfLiteOk) {
           Serial.println("Invoke failed!");
-          while (1);
+          while (1)
+            ;
           return;
         }
         String combined_str = String("{");
         String maxGestureKey;
-        float maxValueKeyThreshold =0 ;
+        int maxGestureIndex;
+        float maxValueKeyThreshold = 0;
         // Loop through the output tensor values from the model
         for (int i = 0; i < NUM_GESTURES; i++) {
-          combined_str += String("\"") +GESTURES[i] + "\":\"" + String(tflOutputTensor->data.f[i],6) + String("\"");
-          //Serial.print(GESTURES[i]);
-          //Serial.print(":");
-          //Serial.println(tflOutputTensor->data.f[i], 6);
-          if(i<NUM_GESTURES-1){
-            combined_str+=String(",");
+          combined_str += String("\"") + GESTURES[i] + "\":\"" + String(tflOutputTensor->data.f[i], 6) + String("\"");
+          if (i < NUM_GESTURES - 1) {
+            combined_str += String(",");
           }
 
-          if(tflOutputTensor->data.f[i]>maxValueKeyThreshold){
+          if (tflOutputTensor->data.f[i] > maxValueKeyThreshold) {
             maxValueKeyThreshold = tflOutputTensor->data.f[i];
             maxGestureKey = GESTURES[i];
+            maxGestureIndex = i;
           }
-          
         }
         combined_str += String("}");
         Serial.println(combined_str);
-        // int buzz = 0;
-        // bool switchVal = False;
-        // if (maxGestureKey == GestureFlag) {
-        //   //Serial.println("True");
-        //   buzz= 1;
-        //   for (int i = 0; i < 200; i++) {
-        //     tone(BUZZER_PIN, BUZZER_FREQ);
-        //     delay(100);
-        //     if(switchVal){
-        //         noTone(BUZZER_PIN);
-        //         buzz=0
-        //         serial.println("SwitchOFF")
-        //     }
-        //   }
-          
-        //   if(buzz==1){
-        //     noTone(BUZZER_PIN);
-        //     serial.println("FallConfirmed")
-        //     buzz =0;
-        //   }
-        // }
       }
     }
   }
