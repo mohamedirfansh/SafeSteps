@@ -18,7 +18,7 @@ const FallsDetectedList: FC = function () {
     onValue(getFalls, (snapshot) => {
       const data = snapshot.val();
       setFalls(Object.entries(data));
-      console.log(Object.entries(data));
+      // console.log(Object.entries(data));
     });
   }, []);
   return (
